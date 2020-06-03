@@ -114,3 +114,128 @@ void Tunnel(Image *dst, const Image &src)
         }
     }
 }
+
+void Bilateral_Filt(Image *dst, const Image &src)
+{
+    // (i, j) = (x, y)
+    int w = src.width;
+    int h = src.height;
+
+    // zero padding
+    Image tmp(w + 4, h + 4);
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            tmp.r(i + 2, j + 2) = src.r_value(i, j);
+            tmp.g(i + 2, j + 2) = src.g_value(i, j);
+            tmp.b(i + 2, j + 2) = src.b_value(i, j);
+        }
+    }
+
+    std::array<int, 5> ar = {1, 4, 6, 4, 1};
+    std::array<std::array<double, 5>, 5> gaussian;
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            gaussian[i][j] = ar[i] * ar[j] / 256.0;
+        }
+    }
+
+    std::array<double, 3> mean;
+    std::array<double, 3> var;
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            mean[0] += src.r_value(i, j);
+            mean[1] += src.g_value(i, j);
+            mean[2] += src.b_value(i, j);
+        }
+    }
+    for (int k = 0; k < 3; ++k) {
+        mean[k] /= static_cast<double>(w * h);
+    }
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            var[0] += std::pow(mean[0] - src.r_value(i, j), 2);
+            var[1] += std::pow(mean[1] - src.g_value(i, j), 2);
+            var[2] += std::pow(mean[2] - src.b_value(i, j), 2);
+        }
+    }
+    for (int k = 0; k < 3; ++k) {
+        var[k] /= static_cast<double>(w * h);
+    }
+
+    std::array<std::array<double, 5>, 5> b_filt_r, b_filt_g, b_filt_b;
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            for (int m = 0; m < 5; ++m) {
+                for (int n = 0; n < 5; ++n) {
+                    b_filt_r[m][n] = gaussian[m][n] * std::exp(-std::pow(tmp.r_value(i + 2, j + 2) - tmp.r_value(i + m, j + n), 2) / (2 * std::pow(var[0], 2)));
+                    b_filt_g[m][n] = gaussian[m][n] * std::exp(-std::pow(tmp.g_value(i + 2, j + 2) - tmp.g_value(i + m, j + n), 2) / (2 * std::pow(var[1], 2)));
+                    b_filt_b[m][n] = gaussian[m][n] * std::exp(-std::pow(tmp.b_value(i + 2, j + 2) - tmp.b_value(i + m, j + n), 2) / (2 * std::pow(var[2], 2)));
+                }
+            }
+
+            double sum_r1 = 0, sum_g1 = 0, sum_b1 = 0;
+            double sum_r2 = 0, sum_g2 = 0, sum_b2 = 0;
+            for (int m = 0; m < 5; ++m) {
+                for (int n = 0; n < 5; ++n) {
+                    sum_r1 += b_filt_r[m][m];
+                    sum_r2 += b_filt_r[m][n] * tmp.r_value(i + m, j + n);
+
+                    sum_g1 += b_filt_g[m][n];
+                    sum_g2 += b_filt_g[m][n] * tmp.g_value(i + m, j + n);
+
+                    sum_b1 += b_filt_b[m][n];
+                    sum_b2 += b_filt_b[m][n] * tmp.b_value(i + m, j + n);
+                }
+            }
+
+            dst->r(i, j) = sum_r2 / sum_r1;
+            dst->g(i, j) = sum_g2 / sum_g1;
+            dst->b(i, j) = sum_b2 / sum_b1;
+        }
+    }
+}
+
+void Gauss_Filt(Image *dst, const Image &src)
+{
+
+    int w = src.width;
+    int h = src.height;
+
+    // zero padding
+    Image tmp(w + 4, h + 4);
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            tmp.r(i + 2, j + 2) = src.r_value(i, j);
+            tmp.g(i + 2, j + 2) = src.g_value(i, j);
+            tmp.b(i + 2, j + 2) = src.b_value(i, j);
+        }
+    }
+
+    std::array<int, 5> ar = {1, 4, 6, 4, 1};
+    std::array<std::array<double, 5>, 5> gaussian;
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            gaussian[i][j] = ar[i] * ar[j] / 256.0;
+        }
+    }
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            double sum_r = 0, sum_g = 0, sum_b = 0;
+            for (int m = 0; m < 5; ++m) {
+                for (int n = 0; n < 5; ++n) {
+                    sum_r += gaussian[m][n] * tmp.r_value(i + m, j + n);
+                    sum_g += gaussian[m][n] * tmp.g_value(i + m, j + n);
+                    sum_b += gaussian[m][n] * tmp.b_value(i + m, j + n);
+                }
+            }
+            dst->r(i, j) = sum_r;
+            dst->g(i, j) = sum_g;
+            dst->b(i, j) = sum_b;
+        }
+    }
+}
