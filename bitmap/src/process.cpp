@@ -3,6 +3,7 @@
 #include <iobitmap.hpp>
 #include <iostream>
 #include <process.hpp>
+#include <vector>
 
 auto bilinear = [](const double x, const double y, const Image &img, const char col) {
     const int x_floor = std::floor(x);
@@ -18,6 +19,16 @@ auto bilinear = [](const double x, const double y, const Image &img, const char 
         return 0.0;
 };
 
+void GrayScale(Image *dst, const Image &src)
+{
+    for (int i = 0; i < src.width; ++i) {
+        for (int j = 0; j < src.height; ++j) {
+            dst->r(i, j) = (src.r_value(i, j) + src.g_value(i, j) + src.b_value(i, j)) / 3.0;
+            dst->g(i, j) = (src.r_value(i, j) + src.g_value(i, j) + src.b_value(i, j)) / 3.0;
+            dst->b(i, j) = (src.r_value(i, j) + src.g_value(i, j) + src.b_value(i, j)) / 3.0;
+        }
+    }
+}
 // バイリニア変換により画像の容量を小さくする
 void Reduction(Image *dst, Image &src, const int w, const int h)
 {
@@ -234,6 +245,72 @@ void Gauss_Filt(Image *dst, const Image &src)
             dst->r(i, j) = sum_r;
             dst->g(i, j) = sum_g;
             dst->b(i, j) = sum_b;
+        }
+    }
+}
+
+void Gradient(Image *dst, const Image &src)
+{
+    int sobel_filt_x[3][3] = {{-1, -2, -1},
+                              {0, 0, 0},
+                              {1, 2, 1}};
+
+    int soble_filt_y[3][3] = {{-1, 0, 1},
+                              {-2, 0, 2},
+                              {-1, 0, 1}};
+
+    int w = src.width;
+    int h = src.height;
+
+    std::vector<std::vector<double>> grad_r(w - 2, std::vector<double>(h - 2, 0));
+    std::vector<std::vector<double>> grad_g(w - 2, std::vector<double>(h - 2, 0));
+    std::vector<std::vector<double>> grad_b(w - 2, std::vector<double>(h - 2, 0));
+    std::vector<std::vector<double>> mean(w - 2, std::vector<double>(h - 2, 0));
+
+    double max_mean = 0;
+
+    for (int i = 0; i < w - 2; ++i) {
+        for (int j = 0; j < h - 2; ++j) {
+            std::array<int, 3> grad_x = {0, 0, 0};
+            std::array<int, 3> grad_y = {0, 0, 0};
+
+            for (int m = 0; m < 3; ++m) {
+                for (int n = 0; n < 3; ++n) {
+                    grad_x[0] += sobel_filt_x[m][n] * src.r_value(i + m, j + n);
+                    grad_y[0] += soble_filt_y[m][n] * src.r_value(i + m, j + n);
+                }
+            }
+            grad_r[i][j] = std::sqrt(grad_x[0] * grad_x[0] + grad_y[0] * grad_y[0]);
+
+            for (int m = 0; m < 3; ++m) {
+                for (int n = 0; n < 3; ++n) {
+                    grad_x[1] += sobel_filt_x[m][n] * src.g_value(i + m, j + n);
+                    grad_y[1] += soble_filt_y[m][n] * src.g_value(i + m, j + n);
+                }
+            }
+            grad_g[i][j] = std::sqrt(grad_x[1] * grad_x[1] + grad_y[1] * grad_y[1]);
+
+            for (int m = 0; m < 3; ++m) {
+                for (int n = 0; n < 3; ++n) {
+                    grad_x[2] += sobel_filt_x[m][n] * src.b_value(i + m, j + n);
+                    grad_y[2] += soble_filt_y[m][n] * src.b_value(i + m, j + n);
+                }
+            }
+            grad_b[i][j] = std::sqrt(grad_x[2] * grad_x[2] + grad_y[2] * grad_y[2]);
+
+            mean[i][j] = (grad_r[i][j] + grad_g[i][j] + grad_b[i][j]) / 3.0;
+            if (mean[i][j] > max_mean) {
+                max_mean = mean[i][j];
+            }
+        }
+    }
+    std::cout << max_mean << std::endl;
+    dst->reset(w - 2, h - 2);
+    for (int i = 0; i < w - 2; ++i) {
+        for (int j = 0; j < h - 2; ++j) {
+            dst->r(i, j) = mean[i][j] * 255 / max_mean;
+            dst->g(i, j) = mean[i][j] * 255 / max_mean;
+            dst->b(i, j) = mean[i][j] * 255 / max_mean;
         }
     }
 }

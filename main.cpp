@@ -10,6 +10,6 @@ int main()
     // Solarisation(&dst, img);
     // Extend(&dst, img, 2);
     // Tunnel(&dst, img);
-    Bilateral_Filt(&dst, img);
+    GrayScale(&dst, img);
     SaveBitmap(std::string("../image/sunset_out.bmp"), dst);
 }
