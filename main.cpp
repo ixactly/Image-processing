@@ -10,6 +10,6 @@ int main()
     // Solarisation(&dst, img);
     // Extend(&dst, img, 2);
     // Tunnel(&dst, img);
-    Gauss_Filt(&dst, img);
+    Bilateral_Filt(&dst, img);
     SaveBitmap(std::string("../image/sunset_out.bmp"), dst);
 }
