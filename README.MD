@@ -1,2 +1,2 @@
-READ
+READして
 

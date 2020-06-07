@@ -169,10 +169,11 @@ void Bilateral_Filt(Image *dst, const Image &src)
             var += std::pow(mean - src.r_value(i, j), 2) + std::pow(mean - src.g_value(i, j), 2) + std::pow(mean - src.b_value(i, j), 2);
         }
     }
-
     var /= 3 * w * h;
     std::cout << "mean: " << mean << std::endl;
     std::cout << "var: " << var << std::endl;
+
+    //filtering
     std::array<std::array<double, 5>, 5> b_filt_r, b_filt_g, b_filt_b;
     for (int i = 0; i < w; ++i) {
         for (int j = 0; j < h; ++j) {
