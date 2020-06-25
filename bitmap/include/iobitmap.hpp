@@ -68,11 +68,24 @@ struct Image {
         this->pixel.resize(3 * w * h);
     }
 
+    void high(int i, int j)
+    {
+        this->r(i, j) = 255;
+        this->g(i, j) = 255;
+        this->b(i, j) = 255;
+    }
+
+    void low(int i, int j)
+    {
+        this->r(i, j) = 0;
+        this->g(i, j) = 0;
+        this->b(i, j) = 0;
+    }
+
     int width;
     int height;
     std::vector<unsigned char> pixel;
 };
 
 void LoadBitmap(const std::string &path, Image *dst);
-
 void SaveBitmap(const std::string &path, const Image &src);

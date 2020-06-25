@@ -4,12 +4,10 @@
 
 int main()
 {
-    Image img;
-    LoadBitmap(std::string("../image/03193006 森 智希 in.bmp"), &img);
-    Image dst(img);
-    // Solarisation(&dst, img);
-    // Extend(&dst, img, 2);
-    // Tunnel(&dst, img);
-    GrayScale(&dst, img);
-    SaveBitmap(std::string("../image/sunset_out.bmp"), dst);
+    Image src, tmp;
+    LoadBitmap(std::string("../image/gopochi-all.bmp"), &src);
+    Image dst{src};
+    LoadBitmap(std::string("../image/gopochi-template.bmp"), &tmp);
+    NCCFrame(&dst, src, tmp);
+    SaveBitmap(std::string("../image/gochipo_ncc_frame.bmp"), dst);
 }

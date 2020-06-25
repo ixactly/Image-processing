@@ -315,3 +315,303 @@ void Gradient(Image *dst, const Image &src)
         }
     }
 }
+
+void BinaryImage(Image *dst, const Image &src, const int threshold)
+{
+    GrayScale(dst, src);
+    for (int i = 0; i < src.width; i++) {
+        for (int j = 0; j < src.height; j++) {
+            if (dst->r_value(i, j) < threshold) {
+                dst->r(i, j) = 0;
+                dst->g(i, j) = 0;
+                dst->b(i, j) = 0;
+            } else {
+                dst->r(i, j) = 255;
+                dst->g(i, j) = 255;
+                dst->b(i, j) = 255;
+            }
+        }
+    }
+}
+
+//Hit & Fit
+void Expansion(Image *dst, const Image &src)
+{
+    const int w = src.width;
+    const int h = src.height;
+
+    // zero padding
+    Image tmp(w + 2, h + 2);
+
+    for (int i = 0; i < w + 2; ++i) {
+        for (int j = 0; j < h + 2; ++j) {
+            if (i == 0 || i == (w + 1) || j == 0 || j == (h + 1))
+                tmp.r(i, j) = 255;
+            else
+                tmp.r(i, j) = src.r_value(i - 1, j - 1);
+        }
+    }
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            bool flag = false;
+            for (int m = 0; m < 3; ++m) {
+                if (flag)
+                    break;
+                for (int n = 0; n < 3; ++n) {
+                    if (tmp.r_value(i + m, j + n) == 0) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+            if (flag) {
+                dst->r(i, j) = 0;
+                dst->g(i, j) = 0;
+                dst->b(i, j) = 0;
+            }
+        }
+    }
+}
+
+void Shrink(Image *dst, const Image &src)
+{
+    const int w = src.width;
+    const int h = src.height;
+
+    // zero padding
+    Image tmp(w + 2, h + 2);
+
+    for (int i = 0; i < w + 2; ++i) {
+        for (int j = 0; j < h + 2; ++j) {
+            if (i == 0 || i == (w + 1) || j == 0 || j == (h + 1))
+                tmp.r(i, j) = 0;
+            else
+                tmp.r(i, j) = src.r_value(i - 1, j - 1);
+        }
+    }
+
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < h; ++j) {
+            bool flag = false;
+            for (int m = 0; m < 3; ++m) {
+                if (flag)
+                    break;
+                for (int n = 0; n < 3; ++n) {
+                    if (tmp.r_value(i + m, j + n) != 0) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+            if (flag) {
+                dst->r(i, j) = 255;
+                dst->g(i, j) = 255;
+                dst->b(i, j) = 255;
+            }
+        }
+    }
+}
+
+void Centroid(Image *dst, const Image &src)
+{
+    int count  = 0;
+    double x_g = 0, y_g = 0;
+    for (int i = 0; i < src.width; ++i) {
+        for (int j = 0; j < src.height; ++j) {
+            if (src.r_value(i, j) == 0) {
+                x_g += i;
+                y_g += j;
+                count++;
+            }
+        }
+    }
+
+    for (int i = 0; i < 5; i++) {
+        dst->r(static_cast<int>(x_g / count) - 2 + i, static_cast<int>(y_g / count)) = 255;
+        dst->g(static_cast<int>(x_g / count) - 2 + i, static_cast<int>(y_g / count)) = 0;
+        dst->b(static_cast<int>(x_g / count) - 2 + i, static_cast<int>(y_g / count)) = 0;
+    }
+
+    for (int j = 0; j < 5; j++) {
+        dst->r(static_cast<int>(x_g / count), static_cast<int>(y_g / count) - 2 + j) = 255;
+        dst->g(static_cast<int>(x_g / count), static_cast<int>(y_g / count) - 2 + j) = 0;
+        dst->b(static_cast<int>(x_g / count), static_cast<int>(y_g / count) - 2 + j) = 0;
+    }
+}
+
+void Frame(Image *dst, const Image &src)
+{
+    int w_min = src.width, w_max = 0;
+    int h_min = src.height, h_max = 0;
+
+    for (int i = 0; i < src.width; i++) {
+        for (int j = 0; j < src.height; j++) {
+            if (src.r_value(i, j) == 0) {
+                if (i < w_min)
+                    w_min = i;
+                if (i > w_max)
+                    w_max = i;
+                if (j < h_min)
+                    h_min = j;
+                if (j > h_max)
+                    h_max = j;
+            }
+        }
+    }
+
+    std::cout << w_min << " " << w_max << " " << h_min << " " << h_max;
+    for (int i = w_min - 1; i <= w_max + 1; i++) {
+        for (int j = h_min - 1; j <= h_max + 1; j++) {
+            if ((i == (w_min - 1)) || (i == (w_max + 1)) || (j == (h_min - 1)) || (j == (h_max + 1))) {
+                dst->g(i, j) = 200;
+                dst->r(i, j) = 200;
+                dst->b(i, j) = 0;
+            }
+        }
+    }
+}
+
+void NCC(Image *dst, const Image &src, const Image &tmp)
+{
+    const int w = src.width - tmp.width;
+    const int h = src.height - tmp.height;
+    dst->reset(w, h);
+
+    // ncc値を格納する配列
+    std::vector<double> R_list(w * h);
+    std::array<std::tuple<double, int, int>, 4> R_top;
+
+    // nccの最大と最小を求め，[0, 255]でスケーリング
+    double R_min = 1, R_max = 0;
+
+    for (int i = 0; i < w; i++) {
+        for (int j = 0; j < h; j++) {
+            double numer = 0, denom1 = 0, denom2 = 0;
+            for (int m = 0; m < tmp.width; m++) {
+                for (int n = 0; n < tmp.height; n++) {
+                    numer += src.r_value(i + m, j + n) * tmp.r_value(m, n);
+                    denom1 += std::pow(src.r_value(i + m, j + n), 2);
+                    denom2 += std::pow(tmp.r_value(m, n), 2);
+                }
+            }
+
+            double R_ncc = numer / std::sqrt(denom1 * denom2);
+            if (R_min > R_ncc)
+                R_min = R_ncc;
+            if (R_max < R_ncc)
+                R_max = R_ncc;
+
+            R_list[j * w + i] = R_ncc;
+            R_top[3]          = std::make_tuple(R_ncc, i, j);
+            // std::cout << std::get<0>(R_top[3]) << " " << std::get<1>(R_top[3]) << " " << std::get<2>(R_top[3]) << std::endl;
+
+            std::sort(R_top.begin(), R_top.end(), [](const auto &lhs, const auto &rhs) {
+                return std::get<0>(lhs) > std::get<0>(rhs);
+            });
+
+            // 同一の領域におけるセットを避け
+
+            if (std::sqrt(std::pow(std::get<1>(R_top[0]) - std::get<1>(R_top[1]), 2) + std::pow(std::get<2>(R_top[0]) - std::get<2>(R_top[1]), 2)) < 5) {
+                R_top[1] = std::make_tuple(0.0, 0, 0);
+            }
+        }
+    }
+
+    // scaling
+    for (int i = 0; i < w; i++) {
+        for (int j = 0; j < h; j++) {
+            dst->r(i, j) = static_cast<int>((R_list[j * w + i] - R_min) * 255 / (R_max - R_min));
+            dst->g(i, j) = static_cast<int>((R_list[j * w + i] - R_min) * 255 / (R_max - R_min));
+            dst->b(i, j) = static_cast<int>((R_list[j * w + i] - R_min) * 255 / (R_max - R_min));
+        }
+    }
+    for (int i = 0; i < 3; i++) {
+        dst->r(std::get<1>(R_top[i]), std::get<2>(R_top[i])) = 0;
+        dst->g(std::get<1>(R_top[i]), std::get<2>(R_top[i])) = 0;
+        dst->b(std::get<1>(R_top[i]), std::get<2>(R_top[i])) = 0;
+    }
+    dst->r(std::get<1>(R_top[0]), std::get<2>(R_top[0])) = 255;
+    dst->g(std::get<1>(R_top[1]), std::get<2>(R_top[1])) = 255;
+    dst->b(std::get<1>(R_top[2]), std::get<2>(R_top[2])) = 255;
+}
+
+void NCCFrame(Image *dst, const Image &src, const Image &tmp)
+{
+    const int w = src.width - tmp.width;
+    const int h = src.height - tmp.height;
+
+    // ncc値を格納する配列
+    std::vector<double> R_list(w * h);
+    std::array<std::tuple<double, int, int>, 4> R_top;
+
+    for (int i = 0; i < w; i++) {
+        for (int j = 0; j < h; j++) {
+            double numer = 0, denom1 = 0, denom2 = 0;
+            for (int m = 0; m < tmp.width; m++) {
+                for (int n = 0; n < tmp.height; n++) {
+                    numer += src.r_value(i + m, j + n) * tmp.r_value(m, n);
+                    denom1 += std::pow(src.r_value(i + m, j + n), 2);
+                    denom2 += std::pow(tmp.r_value(m, n), 2);
+                }
+            }
+            double R_ncc = numer / std::sqrt(denom1 * denom2);
+
+            // ncc値をtop3と新しいncc値1つの計4つでsortしていく
+            R_top[3] = std::make_tuple(R_ncc, i, j);
+            std::sort(R_top.begin(), R_top.end(), [](const auto &lhs, const auto &rhs) {
+                return std::get<0>(lhs) > std::get<0>(rhs);
+            });
+
+            // 近い領域におけるncc値のtopを避ける
+            if (std::sqrt(std::pow(std::get<1>(R_top[0]) - std::get<1>(R_top[1]), 2) + std::pow(std::get<2>(R_top[0]) - std::get<2>(R_top[1]), 2)) < 5) {
+                R_top[1] = std::make_tuple(0.0, 0, 0);
+            }
+        }
+    }
+
+    const int &i1 = std::get<1>(R_top[0]), &j1 = std::get<2>(R_top[0]);
+    // top1 ncc
+    for (int i = 0; i < tmp.width; i++) {
+        dst->low(i1 + i, j1);
+        dst->r(i1 + i, j1) = 255;
+        dst->low(i1 + i, j1 + tmp.height - 1);
+        dst->r(i1 + i, j1 + tmp.height - 1) = 255;
+    }
+
+    for (int j = 0; j < tmp.height; j++) {
+        dst->low(i1, j1 + j);
+        dst->r(i1, j1 + j) = 255;
+        dst->low(i1 + tmp.width - 1, j1 + j);
+        dst->r(i1 + tmp.width - 1, j1 + j) = 255;
+    }
+
+    // top2 ncc
+    const int &i2 = std::get<1>(R_top[1]), &j2 = std::get<2>(R_top[1]);
+    for (int i = 0; i < tmp.width; i++) {
+        dst->low(i2 + i, j2);
+        dst->g(i2 + i, j2) = 255;
+        dst->low(i2 + i, j2 + tmp.height);
+        dst->g(i2 + i, j2 + tmp.height) = 255;
+    }
+    for (int j = 0; j < tmp.height; j++) {
+        dst->low(i2, j2 + j);
+        dst->g(i2, j2 + j) = 255;
+        dst->low(i2 + tmp.width - 1, j2 + j);
+        dst->g(i2 + tmp.width - 1, j2 + j) = 255;
+    }
+
+    const int &i3 = std::get<1>(R_top[2]), &j3 = std::get<2>(R_top[2]);
+    for (int i = 0; i < tmp.width; i++) {
+        dst->low(i3 + i, j3);
+        dst->b(i3 + i, j3) = 255;
+        dst->low(i3 + i, j3 + tmp.height);
+        dst->b(i3 + i, j3 + tmp.height) = 255;
+    }
+    for (int j = 0; j < tmp.height; j++) {
+        dst->low(i3, j3 + j);
+        dst->b(i3, j3 + j) = 255;
+        dst->low(i3 + tmp.width - 1, j3 + j);
+        dst->b(i3 + tmp.width - 1, j3 + j) = 255;
+    }
+}
